@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- NekoBox Style Dark Theme -->
+    <color name="primary">#F48FB1</color> <!-- 主色调: 柔和的粉色 -->
+    <color name="onPrimary">#48001C</color>
+    <color name="primaryContainer">#67002C</color>
+    <color name="onPrimaryContainer">#FFD9E0</color>
+
+    <color name="secondary">#E3BDC3</color>
+    <color name="onSecondary">#42292F</color>
+    <color name="secondaryContainer">#5B3F45</color>
+    <color name="onSecondaryContainer">#FFD9E0</color>
+
+    <color name="error">#BA1A1A</color>
+    <color name="onError">#690005</color>
+
+    <color name="background">#1C1B1B</color> <!-- 深灰色背景 -->
+    <color name="onBackground">#EBE0E0</color> <!-- 背景上的文字: 浅灰色 -->
+    <color name="surface">#222020</color> <!-- 卡片背景: 稍亮的深灰色 -->
+    <color name="onSurface">#EBE0E0</color> <!-- 卡片上的文字: 浅灰色 -->
+    <color name="surfaceVariant">#514345</color>
+    <color name="onSurfaceVariant">#D5C2C5</color>
+</resources>

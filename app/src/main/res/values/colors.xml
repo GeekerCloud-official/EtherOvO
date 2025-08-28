@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="black">#FF000000</color>
+    <color name="white">#FFFFFFFF</color>
+
+    <!-- NekoBox Style Light Theme -->
+    <color name="primary">#F48FB1</color> <!-- 主色调: 粉色 (TopBar, FAB) -->
+    <color name="onPrimary">#FFFFFF</color> <!-- 主色调上的文字: 白色 -->
+    <color name="primaryContainer">#FCE4EC</color>
+    <color name="onPrimaryContainer">#3D0017</color>
+
+    <color name="secondary">#75565C</color>
+    <color name="onSecondary">#FFFFFF</color>
+    <color name="secondaryContainer">#FFD9E0</color>
+    <color name="onSecondaryContainer">#2B151A</color>
+
+    <color name="error">#BA1A1A</color>
+    <color name="onError">#FFFFFF</color>
+
+    <color name="background">#F5F5F5</color> <!-- 浅灰色背景 -->
+    <color name="onBackground">#201A1B</color> <!-- 背景上的文字: 深灰色 -->
+    <color name="surface">#FFFFFF</color> <!-- 卡片背景: 白色 -->
+    <color name="onSurface">#201A1B</color> <!-- 卡片上的文字: 深灰色 -->
+    <color name="surfaceVariant">#F3DDE0</color>
+    <color name="onSurfaceVariant">#514345</color>
+</resources>
