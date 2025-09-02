@@ -9,11 +9,26 @@ public class RootUtil {
 
     private static final String TAG = "RootCommand";
 
-    /**
-     * 执行一条root命令并返回其标准输出和错误输出。
-     * @param command 要执行的命令
-     * @return 返回命令的执行结果，包含stdout和stderr。
-     */
+    public static boolean isRootAvailable() {
+        Process process = null;
+        try {
+            process = Runtime.getRuntime().exec(new String[]{"su", "-c", "id"});
+            int exitCode = process.waitFor();
+            if (exitCode == 0) {
+                BufferedReader in = new BufferedReader(new InputStreamReader(process.getInputStream()));
+                String output = in.readLine();
+                return output != null && output.contains("uid=0");
+            }
+            return false;
+        } catch (Exception e) {
+            return false;
+        } finally {
+            if (process != null) {
+                process.destroy();
+            }
+        }
+    }
+
     public static CommandResult executeRootCommand(String command) {
         StringBuilder stdout = new StringBuilder();
         StringBuilder stderr = new StringBuilder();
@@ -24,7 +39,6 @@ public class RootUtil {
 
         try {
             process = Runtime.getRuntime().exec("su");
-            // 这是修正后的行
             os = new DataOutputStream(process.getOutputStream());
             stdoutReader = new BufferedReader(new InputStreamReader(process.getInputStream()));
             stderrReader = new BufferedReader(new InputStreamReader(process.getErrorStream()));
@@ -69,9 +83,6 @@ public class RootUtil {
         return new CommandResult(stdout.toString(), stderr.toString());
     }
 
-    /**
-     * 一个简单的类，用于封装命令执行的结果。
-     */
     public static class CommandResult {
         public final String stdout;
         public final String stderr;

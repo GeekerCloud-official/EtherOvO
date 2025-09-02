@@ -6,12 +6,12 @@
         android:id="@+id/action_refresh"
         android:icon="@drawable/ic_refresh"
         android:title="刷新"
-        app:showAsAction="ifRoom" />
+        app:showAsAction="always" />
 
     <item
-        android:id="@+id/action_about"
-        app:srcCompat="@android:drawable/ic_lock_power_off"
+        android:id="@+id/action_info"
+        android:icon="@drawable/ic_info"
         android:title="关于"
-        app:showAsAction="ifRoom" />
+        app:showAsAction="always" />
 
 </menu>

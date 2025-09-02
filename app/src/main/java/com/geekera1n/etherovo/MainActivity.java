@@ -14,10 +14,8 @@ import android.widget.ListView;
 import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.Toast;
-// 删除了旧的 AlertDialog 引用
 import androidx.appcompat.app.AppCompatActivity;
 import com.google.android.material.appbar.MaterialToolbar;
-// 这是关键的新增引用！
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import java.util.ArrayList;
 import java.util.List;
@@ -28,7 +26,6 @@ import java.util.regex.Pattern;
 
 public class MainActivity extends AppCompatActivity {
 
-    // ... (所有变量定义和 onCreate, initViews, setupListeners 等方法保持不变) ...
     private LinearLayout layoutDisconnected;
     private ScrollView layoutConnected;
     private MaterialToolbar topAppBar;
@@ -41,6 +38,9 @@ public class MainActivity extends AppCompatActivity {
     private String currentInterfaceName = "";
     private final ExecutorService executorService = Executors.newSingleThreadExecutor();
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
+    private Handler autoRefreshHandler;
+    private Runnable autoRefreshRunnable;
+    private boolean isAutoRefreshing = false;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -48,7 +48,22 @@ public class MainActivity extends AppCompatActivity {
         setContentView(R.layout.activity_main);
         initViews();
         setupListeners();
-        refreshAllInfo();
+        // 首次启动时，手动刷新一次
+        refreshAllInfo(true);
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        // 当App返回前台时，（重新）开始自动刷新
+        startAutoRefresh();
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        // 当App进入后台时，停止自动刷新以节省电量
+        stopAutoRefresh();
     }
 
     private void initViews() {
@@ -70,15 +85,17 @@ public class MainActivity extends AppCompatActivity {
     private void setupListeners() {
         topAppBar.setOnMenuItemClickListener(item -> {
             if (item.getItemId() == R.id.action_refresh) {
-                refreshAllInfo();
+                refreshAllInfo(true);
                 return true;
             }
-            if (item.getItemId() == R.id.action_about) {
+            if (item.getItemId() == R.id.action_info) {
                 showAboutDialog();
                 return true;
             }
             return false;
         });
+
+        // 假设用户一定有Root权限
         btnAddIp.setOnClickListener(v -> showAddIpDialog());
         btnAddRoute.setOnClickListener(v -> showAddRouteDialog());
         btnResetInterface.setOnClickListener(v -> resetInterface());
@@ -104,52 +121,113 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    private void refreshAllInfo() {
-        Toast.makeText(this, "正在刷新...", Toast.LENGTH_SHORT).show();
+    // --- 这是全新的、最精简、最可靠的刷新逻辑 ---
+    private void refreshAllInfo(boolean showToast) {
+        if (showToast) {
+            Toast.makeText(this, "正在刷新...", Toast.LENGTH_SHORT).show();
+        }
         executorService.execute(() -> {
+            // 步骤 1: 查找接口
             RootUtil.CommandResult resultLink = RootUtil.executeRootCommand("ip link show");
             Pattern patternLink = Pattern.compile("\\d+: (eth\\d+|usb\\d+):");
             Matcher matcherLink = patternLink.matcher(resultLink.stdout);
-            currentInterfaceName = matcherLink.find() ? matcherLink.group(1) : "";
-            boolean isUp = !currentInterfaceName.isEmpty() && resultLink.stdout.contains(currentInterfaceName + ":") && resultLink.stdout.contains("state UP");
-            if (!isUp) {
+            String foundInterfaceName = matcherLink.find() ? matcherLink.group(1) : "";
+
+            if (foundInterfaceName.isEmpty()) {
+                // 如果找不到接口，就在主线程更新UI为“已断开”状态
                 mainHandler.post(() -> {
+                    this.currentInterfaceName = "";
                     updateUiState(false);
-                    Toast.makeText(this, "未找到已连接的网卡", Toast.LENGTH_SHORT).show();
+                    if (showToast) Toast.makeText(this, "未找到USB有线网卡", Toast.LENGTH_SHORT).show();
                 });
                 return;
             }
-            mainHandler.post(() -> updateUiState(true));
-            RootUtil.CommandResult resultIp = RootUtil.executeRootCommand("ip -4 a show dev " + currentInterfaceName);
-            List<String> newIpList = new ArrayList<>();
+
+            // 如果找到了接口，就在主线程更新UI为“已连接”状态，并保存接口名
+            mainHandler.post(() -> {
+                this.currentInterfaceName = foundInterfaceName;
+                updateUiState(true);
+            });
+
+            // 步骤 2: 获取IP地址
+            RootUtil.CommandResult resultIp = RootUtil.executeRootCommand("ip -4 a show dev " + foundInterfaceName);
+            final List<String> newIpList = new ArrayList<>();
             Pattern patternIp = Pattern.compile("inet (\\d+\\.\\d+\\.\\d+\\.\\d+/\\d+)");
             Matcher matcherIp = patternIp.matcher(resultIp.stdout);
             while (matcherIp.find()) {
                 newIpList.add(matcherIp.group(1));
             }
-            RootUtil.CommandResult resultRoute = RootUtil.executeRootCommand("ip route show dev " + currentInterfaceName);
-            List<String> newRouteList = new ArrayList<>();
+
+            // 步骤 3: 获取路由
+            RootUtil.CommandResult resultRoute = RootUtil.executeRootCommand("ip route show dev " + foundInterfaceName);
+            final List<String> newRouteList = new ArrayList<>();
             String[] lines = resultRoute.stdout.split("\\r?\\n");
             for (String line : lines) {
                 if (!line.trim().isEmpty()) {
                     newRouteList.add(line.trim());
                 }
             }
+
+            // 步骤 4: 在主线程更新列表内容
             mainHandler.post(() -> {
-                tvInterfaceName.setText("接口: " + currentInterfaceName);
-                ipList.clear();
-                ipList.addAll(newIpList);
-                ipAdapter.notifyDataSetChanged();
-                routeList.clear();
-                routeList.addAll(newRouteList);
-                routeAdapter.notifyDataSetChanged();
-                Toast.makeText(this, "刷新完成", Toast.LENGTH_SHORT).show();
+                tvInterfaceName.setText("接口: " + this.currentInterfaceName);
+                if (!ipList.equals(newIpList)) {
+                    ipList.clear();
+                    ipList.addAll(newIpList);
+                    ipAdapter.notifyDataSetChanged();
+                }
+                if (!routeList.equals(newRouteList)) {
+                    routeList.clear();
+                    routeList.addAll(newRouteList);
+                    routeAdapter.notifyDataSetChanged();
+                }
+                if (showToast) Toast.makeText(this, "刷新完成", Toast.LENGTH_SHORT).show();
             });
         });
     }
 
+    private void startAutoRefresh() {
+        if (isAutoRefreshing) return;
+        isAutoRefreshing = true;
+        autoRefreshHandler = new Handler(Looper.getMainLooper());
+        autoRefreshRunnable = new Runnable() {
+            @Override
+            public void run() {
+                refreshAllInfo(false);
+                autoRefreshHandler.postDelayed(this, 2000);
+            }
+        };
+        autoRefreshHandler.post(autoRefreshRunnable);
+    }
+
+    private void stopAutoRefresh() {
+        if (autoRefreshHandler != null && autoRefreshRunnable != null) {
+            autoRefreshHandler.removeCallbacks(autoRefreshRunnable);
+        }
+        isAutoRefreshing = false;
+    }
+
+    private void executeCommandAndRefresh(String command, String successMessage) {
+        stopAutoRefresh();
+        Toast.makeText(this, "正在执行操作...", Toast.LENGTH_SHORT).show();
+        executorService.execute(() -> {
+            RootUtil.CommandResult result = RootUtil.executeRootCommand(command);
+            mainHandler.post(() -> {
+                if (result.isSuccess()) {
+                    Toast.makeText(this, successMessage, Toast.LENGTH_SHORT).show();
+                    // 关键：在手动操作成功后，立即发起一次高质量的刷新
+                    refreshAllInfo(false);
+                } else {
+                    Toast.makeText(this, "操作失败:\n" + result.stderr, Toast.LENGTH_LONG).show();
+                }
+                // 无论成功与否，都恢复自动刷新
+                mainHandler.postDelayed(this::startAutoRefresh, 1000);
+            });
+        });
+    }
+
+    // --- 所有弹窗和删除方法保持不变 ---
     private void showAboutDialog() {
-        // 使用 MaterialAlertDialogBuilder
         new MaterialAlertDialogBuilder(this)
                 .setTitle("关于 EtherOvO")
                 .setMessage("这是一款高级USB有线网卡管理工具。\n\n由您和Gemini共同打造。")
@@ -162,10 +240,8 @@ public class MainActivity extends AppCompatActivity {
             Toast.makeText(this, "未检测到有效接口，请先刷新", Toast.LENGTH_SHORT).show();
             return;
         }
-        // 使用 MaterialAlertDialogBuilder
         MaterialAlertDialogBuilder builder = new MaterialAlertDialogBuilder(this);
         builder.setTitle("添加新IP地址");
-
         LinearLayout layout = new LinearLayout(this);
         layout.setOrientation(LinearLayout.VERTICAL);
         layout.setPadding(50, 40, 50, 20);
@@ -193,10 +269,8 @@ public class MainActivity extends AppCompatActivity {
             Toast.makeText(this, "未检测到有效接口，请先刷新", Toast.LENGTH_SHORT).show();
             return;
         }
-        // 使用 MaterialAlertDialogBuilder
         MaterialAlertDialogBuilder builder = new MaterialAlertDialogBuilder(this);
         builder.setTitle("添加新路由");
-
         LinearLayout layout = new LinearLayout(this);
         layout.setOrientation(LinearLayout.VERTICAL);
         layout.setPadding(50, 40, 50, 20);
@@ -232,7 +306,6 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void showDeleteConfirmationDialog(String itemType, String item, Runnable onConfirm) {
-        // 使用 MaterialAlertDialogBuilder
         new MaterialAlertDialogBuilder(this)
                 .setTitle("确认删除")
                 .setMessage("您确定要删除这个" + itemType + "吗？\n\n" + item)
@@ -253,7 +326,6 @@ public class MainActivity extends AppCompatActivity {
 
     private void resetInterface() {
         if (currentInterfaceName.isEmpty()) return;
-        // 使用 MaterialAlertDialogBuilder
         new MaterialAlertDialogBuilder(this)
                 .setTitle("确认重置接口")
                 .setMessage("这将清除所有手动配置的IP和路由，并让系统重新尝试DHCP。您确定吗？")
@@ -266,19 +338,5 @@ public class MainActivity extends AppCompatActivity {
                 })
                 .setNegativeButton("取消", null)
                 .show();
-    }
-
-    private void executeCommandAndRefresh(String command, String successMessage) {
-        executorService.execute(() -> {
-            RootUtil.CommandResult result = RootUtil.executeRootCommand(command);
-            mainHandler.post(() -> {
-                if (result.isSuccess()) {
-                    Toast.makeText(this, successMessage, Toast.LENGTH_SHORT).show();
-                    mainHandler.postDelayed(this::refreshAllInfo, 500);
-                } else {
-                    Toast.makeText(this, "操作失败:\n" + result.stderr, Toast.LENGTH_LONG).show();
-                }
-            });
-        });
     }
 }

@@ -18,6 +18,8 @@
             app:title="EtherOvO"
             app:menu="@menu/top_app_bar_menu"
             android:background="?attr/colorPrimary"
+            app:titleTextColor="@color/white"
+            android:theme="@style/ThemeOverlay.MaterialComponents.Dark.ActionBar"
             style="?attr/toolbarStyle" />
 
     </com.google.android.material.appbar.AppBarLayout>
@@ -42,7 +44,7 @@
             <ImageView
                 android:layout_width="96dp"
                 android:layout_height="96dp"
-                app:srcCompat="@android:drawable/ic_lock_power_off"
+                app:srcCompat="@drawable/ic_unlink"
                 app:tint="?attr/colorOnSurfaceVariant"
                 android:contentDescription="Disconnected Icon" />
 
@@ -74,6 +76,8 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:textAppearance="?attr/textAppearanceTitleLarge"
+                    android:minHeight="48dp"
+                    android:gravity="center_vertical"
                     tools:text="接口: eth0" />
 
                 <!-- IP 地址管理 -->
@@ -126,6 +130,7 @@
                         android:padding="16dp">
 
                         <TextView
+                            android:id="@+id/route_section_title"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:text="路由规则"
