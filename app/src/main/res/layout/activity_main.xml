@@ -71,22 +71,11 @@
                 android:orientation="vertical"
                 android:padding="16dp">
 
-                <TextView
-                    android:id="@+id/tvInterfaceName"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:textAppearance="?attr/textAppearanceTitleLarge"
-                    android:minHeight="48dp"
-                    android:gravity="center_vertical"
-                    tools:text="接口: eth0" />
-
-                <!-- IP 地址管理 -->
+                <!-- 全新的接口状态显示区域 -->
                 <com.google.android.material.card.MaterialCardView
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    app:shapeAppearance="@style/ShapeAppearance.App.MediumComponent"
-                    android:layout_marginTop="16dp">
-
+                    app:shapeAppearance="@style/ShapeAppearance.App.MediumComponent">
                     <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
@@ -94,18 +83,77 @@
                         android:padding="16dp">
 
                         <TextView
+                            android:id="@+id/tvInterfaceName"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:textAppearance="?attr/textAppearanceTitleLarge"
+                            tools:text="eth0" />
+
+                        <TextView
+                            android:id="@+id/tvMacAddress"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="4dp"
+                            android:textAppearance="?attr/textAppearanceBodyMedium"
+                            android:textColor="?attr/colorOnSurfaceVariant"
+                            tools:text="08:26:ae:37:ad:fc" />
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="horizontal"
+                            android:layout_marginTop="12dp">
+
+                            <TextView
+                                android:id="@+id/tvLinkState"
+                                android:layout_width="0dp"
+                                android:layout_weight="1"
+                                android:layout_height="wrap_content"
+                                android:textAppearance="?attr/textAppearanceLabelLarge"
+                                tools:text="状态: UP" />
+
+                            <TextView
+                                android:id="@+id/tvSpeed"
+                                android:layout_width="0dp"
+                                android:layout_weight="1"
+                                android:layout_height="wrap_content"
+                                android:textAppearance="?attr/textAppearanceLabelLarge"
+                                tools:text="速率: 1000 Mbps" />
+
+                            <TextView
+                                android:id="@+id/tvDuplex"
+                                android:layout_width="0dp"
+                                android:layout_weight="1"
+                                android:layout_height="wrap_content"
+                                android:textAppearance="?attr/textAppearanceLabelLarge"
+                                tools:text="双工: Full" />
+                        </LinearLayout>
+
+                    </LinearLayout>
+                </com.google.android.material.card.MaterialCardView>
+
+                <!-- IP 地址管理 -->
+                <com.google.android.material.card.MaterialCardView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    app:shapeAppearance="@style/ShapeAppearance.App.MediumComponent"
+                    android:layout_marginTop="16dp">
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:padding="16dp">
+                        <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:text="IP 地址"
                             android:textAppearance="?attr/textAppearanceTitleMedium" />
-
                         <ListView
                             android:id="@+id/lvIpAddresses"
                             android:layout_width="match_parent"
                             android:layout_height="150dp"
                             android:layout_marginTop="8dp"
                             tools:listitem="@layout/list_item_custom" />
-
                         <Button
                             android:id="@+id/btnAddIp"
                             android:layout_width="match_parent"
@@ -122,27 +170,23 @@
                     android:layout_height="wrap_content"
                     app:shapeAppearance="@style/ShapeAppearance.App.MediumComponent"
                     android:layout_marginTop="16dp">
-
                     <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:orientation="vertical"
                         android:padding="16dp">
-
                         <TextView
                             android:id="@+id/route_section_title"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:text="路由规则"
                             android:textAppearance="?attr/textAppearanceTitleMedium" />
-
                         <ListView
                             android:id="@+id/lvRoutes"
                             android:layout_width="match_parent"
                             android:layout_height="150dp"
                             android:layout_marginTop="8dp"
                             tools:listitem="@layout/list_item_custom"/>
-
                         <Button
                             android:id="@+id/btnAddRoute"
                             android:layout_width="match_parent"
