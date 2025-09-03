@@ -5,17 +5,17 @@ import android.os.Handler;
 import android.os.Looper;
 import android.text.InputType;
 import android.view.View;
-import android.widget.ArrayAdapter;
+import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.CheckBox;
 import android.widget.EditText;
 import android.widget.LinearLayout;
+import android.widget.ListAdapter;
 import android.widget.ListView;
 import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.Toast;
 import androidx.appcompat.app.AppCompatActivity;
-import androidx.core.content.ContextCompat;
 import com.google.android.material.appbar.MaterialToolbar;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import java.util.ArrayList;
@@ -30,12 +30,15 @@ public class MainActivity extends AppCompatActivity {
     private LinearLayout layoutDisconnected;
     private ScrollView layoutConnected;
     private MaterialToolbar topAppBar;
-    private TextView tvInterfaceName, tvMacAddress, tvLinkState, tvSpeed, tvDuplex;
+    private TextView tvInterfaceName;
     private Button btnAddIp, btnAddRoute, btnResetInterface;
-    private ListView lvIpAddresses, lvRoutes;
-    private ArrayAdapter<String> ipAdapter, routeAdapter;
-    private final List<String> ipList = new ArrayList<>();
-    private final List<String> routeList = new ArrayList<>();
+    private ListView lvInterfaceDetails, lvIpAddresses, lvRoutes;
+
+    private InfoAdapter detailsAdapter, ipAdapter, routeAdapter;
+    private final List<InfoItem> detailsList = new ArrayList<>();
+    private final List<InfoItem> ipList = new ArrayList<>();
+    private final List<InfoItem> routeList = new ArrayList<>();
+
     private String currentInterfaceName = "";
     private final ExecutorService executorService = Executors.newSingleThreadExecutor();
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
@@ -53,33 +56,27 @@ public class MainActivity extends AppCompatActivity {
     }
 
     @Override
-    protected void onResume() {
-        super.onResume();
-        startAutoRefresh();
-    }
-
+    protected void onResume() { super.onResume(); startAutoRefresh(); }
     @Override
-    protected void onPause() {
-        super.onPause();
-        stopAutoRefresh();
-    }
+    protected void onPause() { super.onPause(); stopAutoRefresh(); }
 
     private void initViews() {
         layoutDisconnected = findViewById(R.id.layoutDisconnected);
         layoutConnected = findViewById(R.id.layoutConnected);
         topAppBar = findViewById(R.id.topAppBar);
         tvInterfaceName = findViewById(R.id.tvInterfaceName);
-        tvMacAddress = findViewById(R.id.tvMacAddress);
-        tvLinkState = findViewById(R.id.tvLinkState);
-        tvSpeed = findViewById(R.id.tvSpeed);
-        tvDuplex = findViewById(R.id.tvDuplex);
+        lvInterfaceDetails = findViewById(R.id.lvInterfaceDetails);
         btnAddIp = findViewById(R.id.btnAddIp);
         btnAddRoute = findViewById(R.id.btnAddRoute);
         btnResetInterface = findViewById(R.id.btnResetInterface);
         lvIpAddresses = findViewById(R.id.lvIpAddresses);
         lvRoutes = findViewById(R.id.lvRoutes);
-        ipAdapter = new ArrayAdapter<>(this, R.layout.list_item_custom, android.R.id.text1, ipList);
-        routeAdapter = new ArrayAdapter<>(this, R.layout.list_item_custom, android.R.id.text1, routeList);
+
+        detailsAdapter = new InfoAdapter(this, detailsList);
+        ipAdapter = new InfoAdapter(this, ipList);
+        routeAdapter = new InfoAdapter(this, routeList);
+
+        lvInterfaceDetails.setAdapter(detailsAdapter);
         lvIpAddresses.setAdapter(ipAdapter);
         lvRoutes.setAdapter(routeAdapter);
     }
@@ -101,13 +98,13 @@ public class MainActivity extends AppCompatActivity {
             btnAddRoute.setOnClickListener(v -> showAddRouteDialog());
             btnResetInterface.setOnClickListener(v -> resetInterface());
             lvIpAddresses.setOnItemLongClickListener((parent, view, position, id) -> {
-                String ipToDelete = ipList.get(position);
-                showDeleteConfirmationDialog("IP地址", ipToDelete, () -> deleteIpAddress(ipToDelete));
+                String fullIp = ipList.get(position).value;
+                showDeleteConfirmationDialog("IP地址", fullIp, () -> deleteIpAddress(fullIp));
                 return true;
             });
             lvRoutes.setOnItemLongClickListener((parent, view, position, id) -> {
-                String routeToDelete = routeList.get(position);
-                showDeleteConfirmationDialog("路由", routeToDelete, () -> deleteRoute(routeToDelete));
+                String fullRoute = routeList.get(position).value;
+                showDeleteConfirmationDialog("路由", fullRoute, () -> deleteRoute(fullRoute));
                 return true;
             });
         }
@@ -122,10 +119,11 @@ public class MainActivity extends AppCompatActivity {
             btnAddIp.setVisibility(visibility);
             btnAddRoute.setVisibility(visibility);
             btnResetInterface.setVisibility(visibility);
+            View ipTitle = findViewById(R.id.ip_section_title);
+            if(ipTitle != null) ipTitle.setVisibility(visibility);
             View routeTitle = findViewById(R.id.route_section_title);
-            if (routeTitle != null) {
-                routeTitle.setVisibility(visibility);
-            }
+            if (routeTitle != null) routeTitle.setVisibility(visibility);
+            lvIpAddresses.setVisibility(visibility);
             lvRoutes.setVisibility(visibility);
             if (!hasRoot) {
                 lvIpAddresses.setOnItemLongClickListener(null);
@@ -176,11 +174,11 @@ public class MainActivity extends AppCompatActivity {
             boolean isUp = linkOutput.contains("state UP");
 
             RootUtil.CommandResult resultAddr = RootUtil.executeRootCommand("ip addr show " + foundInterfaceName);
-            final List<String> newIpList = new ArrayList<>();
+            final List<InfoItem> newIpList = new ArrayList<>();
             Pattern ipPattern = Pattern.compile("inet (\\d+\\.\\d+\\.\\d+\\.\\d+/\\d+)");
             Matcher ipMatcher = ipPattern.matcher(resultAddr.stdout);
             while (ipMatcher.find()) {
-                newIpList.add(ipMatcher.group(1));
+                newIpList.add(new InfoItem("IPv4 地址", ipMatcher.group(1)));
             }
 
             RootUtil.CommandResult speedResult = RootUtil.executeRootCommand("cat /sys/class/net/" + foundInterfaceName + "/speed");
@@ -192,7 +190,7 @@ public class MainActivity extends AppCompatActivity {
                         speed = speedValue + " Mbps";
                     }
                 } catch (NumberFormatException e) {
-                    // Ignore if speed is not a valid number
+                    // Ignore
                 }
             }
 
@@ -203,50 +201,61 @@ public class MainActivity extends AppCompatActivity {
                 duplex = d.substring(0, 1).toUpperCase() + d.substring(1);
             }
 
+            final List<InfoItem> newDetailsList = new ArrayList<>();
+            newDetailsList.add(new InfoItem("MAC 地址", macAddress));
+            newDetailsList.add(new InfoItem("状态", isUp ? "UP" : "DOWN"));
+            newDetailsList.add(new InfoItem("速率", speed));
+            newDetailsList.add(new InfoItem("双工模式", duplex));
+
             RootUtil.CommandResult resultRoute = RootUtil.executeRootCommand("ip route show dev " + foundInterfaceName);
-            final List<String> newRouteList = new ArrayList<>();
+            final List<InfoItem> newRouteList = new ArrayList<>();
             String[] lines = resultRoute.stdout.split("\\r?\\n");
             for (String line : lines) {
                 if (!line.trim().isEmpty()) {
-                    newRouteList.add(line.trim());
+                    String title = line.startsWith("default") ? "默认路由 (网关)" : "" + line.split("路由至 ")[0];
+                    newRouteList.add(new InfoItem(title, line));
                 }
             }
 
             final String finalInterfaceName = foundInterfaceName;
-            final String finalMacAddress = macAddress;
-            final boolean finalIsUp = isUp;
-            final String finalSpeed = speed;
-            final String finalDuplex = duplex;
 
             mainHandler.post(() -> {
                 this.currentInterfaceName = finalInterfaceName;
                 updateUiState(true);
-
                 tvInterfaceName.setText(finalInterfaceName);
-                tvMacAddress.setText(finalMacAddress);
-                if (finalIsUp) {
-                    tvLinkState.setText("状态: UP");
-                    tvLinkState.setTextColor(tvMacAddress.getTextColors());
-                } else {
-                    tvLinkState.setText("状态: DOWN");
-                    tvLinkState.setTextColor(ContextCompat.getColor(this, R.color.error));
-                }
-                tvSpeed.setText("速率: " + finalSpeed);
-                tvDuplex.setText("双工: " + finalDuplex);
 
-                if (!ipList.equals(newIpList)) {
-                    ipList.clear();
-                    ipList.addAll(newIpList);
-                    ipAdapter.notifyDataSetChanged();
-                }
-                if (!routeList.equals(newRouteList)) {
-                    routeList.clear();
-                    routeList.addAll(newRouteList);
-                    routeAdapter.notifyDataSetChanged();
-                }
+                updateListView(detailsList, newDetailsList, detailsAdapter, lvInterfaceDetails);
+                updateListView(ipList, newIpList, ipAdapter, lvIpAddresses);
+                updateListView(routeList, newRouteList, routeAdapter, lvRoutes);
+
                 if (showToast) Toast.makeText(this, "刷新完成", Toast.LENGTH_SHORT).show();
             });
         });
+    }
+
+    private void updateListView(List<InfoItem> currentList, List<InfoItem> newList, InfoAdapter adapter, ListView listView) {
+        if (!currentList.equals(newList)) {
+            currentList.clear();
+            currentList.addAll(newList);
+            adapter.notifyDataSetChanged();
+            setListViewHeightBasedOnChildren(listView);
+        }
+    }
+
+    public static void setListViewHeightBasedOnChildren(ListView listView) {
+        ListAdapter listAdapter = listView.getAdapter();
+        if (listAdapter == null) return;
+        int totalHeight = 0;
+        for (int i = 0; i < listAdapter.getCount(); i++) {
+            View listItem = listAdapter.getView(i, null, listView);
+            listItem.measure(View.MeasureSpec.makeMeasureSpec(listView.getWidth(), View.MeasureSpec.UNSPECIFIED),
+                    View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED));
+            totalHeight += listItem.getMeasuredHeight();
+        }
+        ViewGroup.LayoutParams params = listView.getLayoutParams();
+        params.height = totalHeight + (listView.getDividerHeight() * (listAdapter.getCount() - 1));
+        listView.setLayoutParams(params);
+        listView.requestLayout();
     }
 
     private void startAutoRefresh() {

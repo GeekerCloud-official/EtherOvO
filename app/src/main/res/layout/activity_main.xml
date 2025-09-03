@@ -10,7 +10,6 @@
     <com.google.android.material.appbar.AppBarLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content">
-
         <com.google.android.material.appbar.MaterialToolbar
             android:id="@+id/topAppBar"
             android:layout_width="match_parent"
@@ -21,7 +20,6 @@
             app:titleTextColor="@color/white"
             android:theme="@style/ThemeOverlay.MaterialComponents.Dark.ActionBar"
             style="?attr/toolbarStyle" />
-
     </com.google.android.material.appbar.AppBarLayout>
 
     <FrameLayout
@@ -64,7 +62,6 @@
             android:layout_height="match_parent"
             android:visibility="gone"
             tools:visibility="visible">
-
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -79,56 +76,35 @@
                     <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:orientation="vertical"
-                        android:padding="16dp">
+                        android:orientation="vertical">
 
                         <TextView
                             android:id="@+id/tvInterfaceName"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:textAppearance="?attr/textAppearanceTitleLarge"
-                            tools:text="eth0" />
-
-                        <TextView
-                            android:id="@+id/tvMacAddress"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:layout_marginTop="4dp"
-                            android:textAppearance="?attr/textAppearanceBodyMedium"
-                            android:textColor="?attr/colorOnSurfaceVariant"
-                            tools:text="08:26:ae:37:ad:fc" />
-
-                        <LinearLayout
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
-                            android:orientation="horizontal"
-                            android:layout_marginTop="12dp">
+                            android:textAppearance="?attr/textAppearanceTitleLarge"
+                            android:paddingHorizontal="16dp"
+                            android:paddingTop="16dp"
+                            android:paddingBottom="8dp"
+                            tools:text="eth0" />
 
-                            <TextView
-                                android:id="@+id/tvLinkState"
-                                android:layout_width="0dp"
-                                android:layout_weight="1"
-                                android:layout_height="wrap_content"
-                                android:textAppearance="?attr/textAppearanceLabelLarge"
-                                tools:text="状态: UP" />
+                        <ListView
+                            android:id="@+id/lvInterfaceDetails"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:divider="@null"
+                            android:dividerHeight="0dp"
+                            tools:listitem="@layout/list_item_info" />
 
-                            <TextView
-                                android:id="@+id/tvSpeed"
-                                android:layout_width="0dp"
-                                android:layout_weight="1"
-                                android:layout_height="wrap_content"
-                                android:textAppearance="?attr/textAppearanceLabelLarge"
-                                tools:text="速率: 1000 Mbps" />
-
-                            <TextView
-                                android:id="@+id/tvDuplex"
-                                android:layout_width="0dp"
-                                android:layout_weight="1"
-                                android:layout_height="wrap_content"
-                                android:textAppearance="?attr/textAppearanceLabelLarge"
-                                tools:text="双工: Full" />
-                        </LinearLayout>
-
+                        <Button
+                            android:id="@+id/btnResetInterface"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginHorizontal="16dp"
+                            android:layout_marginTop="8dp"
+                            android:layout_marginBottom="16dp"
+                            app:backgroundTint="?attr/colorError"
+                            android:text="重置接口 (恢复DHCP)" />
                     </LinearLayout>
                 </com.google.android.material.card.MaterialCardView>
 
@@ -141,24 +117,29 @@
                     <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:orientation="vertical"
-                        android:padding="16dp">
+                        android:orientation="vertical">
                         <TextView
+                            android:id="@+id/ip_section_title"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:text="IP 地址"
+                            android:paddingHorizontal="16dp"
+                            android:paddingTop="16dp"
                             android:textAppearance="?attr/textAppearanceTitleMedium" />
                         <ListView
                             android:id="@+id/lvIpAddresses"
                             android:layout_width="match_parent"
-                            android:layout_height="150dp"
-                            android:layout_marginTop="8dp"
-                            tools:listitem="@layout/list_item_custom" />
+                            android:layout_height="wrap_content"
+                            android:divider="@null"
+                            android:dividerHeight="0dp"
+                            tools:listitem="@layout/list_item_info" />
                         <Button
                             android:id="@+id/btnAddIp"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
+                            android:layout_marginHorizontal="16dp"
                             android:layout_marginTop="8dp"
+                            android:layout_marginBottom="16dp"
                             android:text="添加新 IP 地址"
                             style="?attr/materialButtonStyle" />
                     </LinearLayout>
@@ -173,37 +154,34 @@
                     <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:orientation="vertical"
-                        android:padding="16dp">
+                        android:orientation="vertical">
                         <TextView
                             android:id="@+id/route_section_title"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:text="路由规则"
+                            android:paddingHorizontal="16dp"
+                            android:paddingTop="16dp"
                             android:textAppearance="?attr/textAppearanceTitleMedium" />
                         <ListView
                             android:id="@+id/lvRoutes"
                             android:layout_width="match_parent"
-                            android:layout_height="150dp"
-                            android:layout_marginTop="8dp"
-                            tools:listitem="@layout/list_item_custom"/>
+                            android:layout_height="wrap_content"
+                            android:divider="@null"
+                            android:dividerHeight="0dp"
+                            tools:listitem="@layout/list_item_info"/>
                         <Button
                             android:id="@+id/btnAddRoute"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
+                            android:layout_marginHorizontal="16dp"
                             android:layout_marginTop="8dp"
+                            android:layout_marginBottom="16dp"
                             android:text="添加新路由"
                             style="?attr/materialButtonStyle" />
                     </LinearLayout>
                 </com.google.android.material.card.MaterialCardView>
 
-                <Button
-                    android:id="@+id/btnResetInterface"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="24dp"
-                    app:backgroundTint="?attr/colorError"
-                    android:text="重置接口 (恢复DHCP)" />
             </LinearLayout>
         </ScrollView>
     </FrameLayout>
