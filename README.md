@@ -57,7 +57,7 @@ The application's core logic is built around a dual-mode system:
 ---
 <br>
 
-# EtherOvO (中文版)
+# EtherOvO (zh_cn)
 
 一款专为安卓设备打造的高级USB有线网卡管理工具，为 Root 和非 Root 用户提供双模式操作。
 
