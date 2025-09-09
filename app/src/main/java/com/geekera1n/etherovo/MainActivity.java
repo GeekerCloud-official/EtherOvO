@@ -1,5 +1,7 @@
 package com.geekera1n.etherovo; // 确保包名一致
 
+import android.content.Context;
+import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
@@ -19,7 +21,9 @@ import androidx.appcompat.app.AppCompatActivity;
 import com.google.android.material.appbar.MaterialToolbar;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.regex.Matcher;
@@ -46,10 +50,22 @@ public class MainActivity extends AppCompatActivity {
     private Runnable autoRefreshRunnable;
     private boolean isAutoRefreshing = false;
 
+    private SharedPreferences sharedPreferences;
+    private static final String PREFS_NAME = "EtherOvO_Persistence";
+    private static final String KEY_PERSISTENT_IPS = "persistent_ips";
+    private static final String KEY_PERSISTENT_ROUTES = "persistent_routes";
+
+    // --- 新增：用于跟踪接口的上一次状态 ---
+    private boolean wasInterfaceUp = false;
+    // --- 新增结束 ---
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+
+        sharedPreferences = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
+
         initViews();
         setupListeners();
         refreshAllInfo(true);
@@ -156,14 +172,42 @@ public class MainActivity extends AppCompatActivity {
             if (foundInterfaceName.isEmpty()) {
                 mainHandler.post(() -> {
                     this.currentInterfaceName = "";
+                    this.wasInterfaceUp = false; // --- 修改：接口消失时，重置状态 ---
                     updateUiState(false);
                     if (showToast) Toast.makeText(this, "未找到USB有线网卡", Toast.LENGTH_SHORT).show();
                 });
                 return;
             }
 
+            final boolean isNewInterfaceConnected = !foundInterfaceName.equals(this.currentInterfaceName);
+
             RootUtil.CommandResult resultLink = RootUtil.executeRootCommand("ip link show " + foundInterfaceName);
             String linkOutput = resultLink.stdout;
+
+            // --- 修改：在这里提前获取 isUp 状态 ---
+            boolean isUp = linkOutput.contains("state UP");
+
+            // --- 修改：全新的、更完善的恢复逻辑 ---
+            // 触发恢复的条件:
+            // 1. 检测到一个全新的接口 (应对USB插拔)
+            // 2. 或者，是同一个接口，但它刚刚从 DOWN 状态恢复到 UP 状态 (应对网线插拔)
+            final boolean shouldRestoreConfig = isNewInterfaceConnected || (!this.wasInterfaceUp && isUp);
+
+            if (shouldRestoreConfig) {
+                mainHandler.post(() -> Toast.makeText(this, "检测到连接，正在恢复配置...", Toast.LENGTH_SHORT).show());
+                applyPersistentConfig(foundInterfaceName);
+                // 等待一小段时间让配置生效
+                try {
+                    Thread.sleep(1000);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
+                // 重新获取信息以显示最新状态
+                resultLink = RootUtil.executeRootCommand("ip link show " + foundInterfaceName);
+                linkOutput = resultLink.stdout;
+                isUp = linkOutput.contains("state UP");
+            }
+            // --- 修改结束 ---
 
             String macAddress = "N/A";
             Pattern macPattern = Pattern.compile("link/ether ([0-9a-fA-F:]+)");
@@ -171,7 +215,6 @@ public class MainActivity extends AppCompatActivity {
             if (macMatcher.find()) {
                 macAddress = macMatcher.group(1);
             }
-            boolean isUp = linkOutput.contains("state UP");
 
             RootUtil.CommandResult resultAddr = RootUtil.executeRootCommand("ip addr show " + foundInterfaceName);
             final List<InfoItem> newIpList = new ArrayList<>();
@@ -211,16 +254,32 @@ public class MainActivity extends AppCompatActivity {
             final List<InfoItem> newRouteList = new ArrayList<>();
             String[] lines = resultRoute.stdout.split("\\r?\\n");
             for (String line : lines) {
-                if (!line.trim().isEmpty()) {
-                    String title = line.startsWith("default") ? "默认路由 (网关)" : "" + line.split("路由至 ")[0];
-                    newRouteList.add(new InfoItem(title, line));
-                }
-            }
+                if (line.trim().isEmpty()) continue;
 
+                String title;
+                String cleanedLine = line.trim(); // 清理首尾空格
+
+                if (cleanedLine.startsWith("default")) {
+                    title = "默认路由 (网关)";
+                } else {
+                    // 对于其他路由，通常第一个词就是目标网络地址
+                    String[] parts = cleanedLine.split("\\s+"); // 按一个或多个空格分割
+                    if (parts.length > 0) {
+                        // 创建一个如 "路由至 192.168.17.0/24" 的标题
+                        title = "路由至 " + parts[0];
+                    } else {
+                        // 这是一个几乎不会发生的备用情况
+                        title = "路由规则";
+                    }
+                }
+                newRouteList.add(new InfoItem(title, cleanedLine));
+            }
             final String finalInterfaceName = foundInterfaceName;
+            final boolean finalIsUp = isUp; // --- 修改：将最终的状态传递给主线程 ---
 
             mainHandler.post(() -> {
                 this.currentInterfaceName = finalInterfaceName;
+                this.wasInterfaceUp = finalIsUp; // --- 修改：更新接口状态，为下一次刷新做准备 ---
                 updateUiState(true);
                 tvInterfaceName.setText(finalInterfaceName);
 
@@ -296,6 +355,67 @@ public class MainActivity extends AppCompatActivity {
         });
     }
 
+    private void applyPersistentConfig(final String interfaceName) {
+        Set<String> ips = sharedPreferences.getStringSet(KEY_PERSISTENT_IPS, new HashSet<>());
+        Set<String> routes = sharedPreferences.getStringSet(KEY_PERSISTENT_ROUTES, new HashSet<>());
+
+        if (ips.isEmpty() && routes.isEmpty()) {
+            return;
+        }
+
+        executorService.execute(() -> {
+            for (String ip : ips) {
+                RootUtil.executeRootCommand("ip addr add " + ip + " dev " + interfaceName);
+            }
+
+            for (String route : routes) {
+                if (route.startsWith("default")) {
+                    RootUtil.executeRootCommand("ip route del default dev " + interfaceName + "; ip route add " + route + " dev " + interfaceName);
+                } else {
+                    RootUtil.executeRootCommand("ip route add " + route + " dev " + interfaceName);
+                }
+            }
+        });
+    }
+
+    private void saveIpToPrefs(String ipWithPrefix) {
+        Set<String> ips = new HashSet<>(sharedPreferences.getStringSet(KEY_PERSISTENT_IPS, new HashSet<>()));
+        ips.add(ipWithPrefix);
+        sharedPreferences.edit().putStringSet(KEY_PERSISTENT_IPS, ips).apply();
+    }
+
+    private void removeIpFromPrefs(String ipWithPrefix) {
+        Set<String> ips = new HashSet<>(sharedPreferences.getStringSet(KEY_PERSISTENT_IPS, new HashSet<>()));
+        ips.remove(ipWithPrefix);
+        sharedPreferences.edit().putStringSet(KEY_PERSISTENT_IPS, ips).apply();
+    }
+
+    private void saveRouteToPrefs(String routeCommandPart) {
+        Set<String> routes = new HashSet<>(sharedPreferences.getStringSet(KEY_PERSISTENT_ROUTES, new HashSet<>()));
+        routes.add(routeCommandPart);
+        sharedPreferences.edit().putStringSet(KEY_PERSISTENT_ROUTES, routes).apply();
+    }
+
+    private void removeRouteFromPrefs(String fullRouteLine) {
+        Set<String> routes = new HashSet<>(sharedPreferences.getStringSet(KEY_PERSISTENT_ROUTES, new HashSet<>()));
+        String routeToRemove = null;
+        for (String savedRoute : routes) {
+            // "ip route show" 的输出 (fullRouteLine) 包含我们保存的路由命令部分 (savedRoute)
+            if (fullRouteLine.trim().startsWith(savedRoute)) {
+                routeToRemove = savedRoute;
+                break;
+            }
+        }
+        if (routeToRemove != null) {
+            routes.remove(routeToRemove);
+            sharedPreferences.edit().putStringSet(KEY_PERSISTENT_ROUTES, routes).apply();
+        }
+    }
+
+    private void clearAllPrefs() {
+        sharedPreferences.edit().remove(KEY_PERSISTENT_IPS).remove(KEY_PERSISTENT_ROUTES).apply();
+    }
+
     private void showAboutDialog() {
         new MaterialAlertDialogBuilder(this)
                 .setTitle("关于 EtherOvO")
@@ -326,7 +446,9 @@ public class MainActivity extends AppCompatActivity {
             String ip = ipInput.getText().toString().trim();
             String prefix = prefixInput.getText().toString().trim();
             if (!ip.isEmpty() && !prefix.isEmpty()) {
-                executeCommandAndRefresh("ip addr add " + ip + "/" + prefix + " dev " + currentInterfaceName, "IP地址添加成功");
+                String fullIp = ip + "/" + prefix;
+                executeCommandAndRefresh("ip addr add " + fullIp + " dev " + currentInterfaceName, "IP地址添加成功");
+                saveIpToPrefs(fullIp);
             }
         });
         builder.setNegativeButton("取消", (dialog, which) -> dialog.cancel());
@@ -362,12 +484,18 @@ public class MainActivity extends AppCompatActivity {
             String dest = destInput.getText().toString().trim();
             String gateway = gatewayInput.getText().toString().trim();
             if (!dest.isEmpty() && !gateway.isEmpty()) {
+                String routePart = dest + " via " + gateway;
+                String command;
+                String successMessage;
                 if (dest.equalsIgnoreCase("default")) {
-                    String command = "ip route del default; ip route add default via " + gateway + " dev " + currentInterfaceName;
-                    executeCommandAndRefresh(command, "默认网关已设置");
+                    command = "ip route del default; ip route add " + routePart + " dev " + currentInterfaceName;
+                    successMessage = "默认网关已设置";
                 } else {
-                    executeCommandAndRefresh("ip route add " + dest + " via " + gateway + " dev " + currentInterfaceName, "路由添加成功");
+                    command = "ip route add " + routePart + " dev " + currentInterfaceName;
+                    successMessage = "路由添加成功";
                 }
+                executeCommandAndRefresh(command, successMessage);
+                saveRouteToPrefs(routePart);
             }
         });
         builder.setNegativeButton("取消", (dialog, which) -> dialog.cancel());
@@ -386,11 +514,13 @@ public class MainActivity extends AppCompatActivity {
     private void deleteIpAddress(String fullIp) {
         if (currentInterfaceName.isEmpty()) return;
         executeCommandAndRefresh("ip addr del " + fullIp + " dev " + currentInterfaceName, "IP地址已删除");
+        removeIpFromPrefs(fullIp);
     }
 
     private void deleteRoute(String fullRoute) {
         if (currentInterfaceName.isEmpty()) return;
         executeCommandAndRefresh("ip route del " + fullRoute, "路由已删除");
+        removeRouteFromPrefs(fullRoute);
     }
 
     private void resetInterface() {
@@ -404,6 +534,7 @@ public class MainActivity extends AppCompatActivity {
                             "sleep 1 && " +
                             "ip link set " + currentInterfaceName + " up";
                     executeCommandAndRefresh(command, "接口已重置");
+                    clearAllPrefs();
                 })
                 .setNegativeButton("取消", null)
                 .show();
