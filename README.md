@@ -4,6 +4,10 @@
 
 An advanced management tool for USB Ethernet adapters on Android devices, featuring dual-mode operation for both Root and Non-Root users.
 
+<p align="center">
+  <img src="https://github.com/GeekerCloud-official/EtherOvO/blob/main/imgs/app-icon.png" alt="App Icon" width="128"/>
+</p>
+
 [![API](https://img.shields.io/badge/API-24%2B-brightgreen.svg?style=flat)](https://android-arsenal.com/api?level=24)
 [![License: GPL-3.0](https://img.shields.io/badge/license-GPL--3.0-orange.svg)](https://www.gnu.org/licenses/gpl-3.0)
 
