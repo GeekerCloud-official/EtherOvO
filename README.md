@@ -21,7 +21,7 @@ EtherOvO intelligently detects if Root access is available and adjusts its funct
 *   **Dynamic IP & Route Management**: Easily add or delete multiple IPv4 addresses and routing rules on the fly.
 *   **Persistent Configuration**: Manually configured IPs and routes are automatically saved and reapplied when the network adapter is reconnected or the link state changes (UP/DOWN).
 *   **Interface Reset**: A one-click option to flush all configurations and restart the interface, allowing the system to re-attempt DHCP.
-*   **Comprehensive Information**: Combines data from low-level `ip` commands and the Android `ConnectivityManager` API to provide the most complete network overview.
+*   **Comprehensive Information**: Combines data from low-level `ip` commands and the Android `ConnectivityManager` API to provide the complete network overview.
 
 #### Without Root Access (Read-Only Mode)
 *   **Safe, Read-Only Information**: Securely view essential network information using standard Android APIs.
@@ -63,7 +63,7 @@ EtherOvO 会智能检测设备是否拥有 Root 权限，并自动调整其功�
 *   **动态 IP 与路由管理**: 无需重启，轻松地在线添加或删除多个 IPv4 地址和路由规则。
 *   **持久化配置**: 手动配置的 IP 和路由规则会被自动保存，并在网卡重新连接或链路状态改变 (UP/DOWN) 时自动恢复。
 *   **重置接口**: 提供一键重置功能，可清除所有手动配置并重启网卡，让系统重新尝试通过 DHCP 获取地址。
-*   **全面的信息整合**: 结合了底层的 `ip` 命令和安卓 `ConnectivityManager` API，为您提供最完整的网络状态概览。
+*   **全面的信息整合**: 结合了底层的 `ip` 命令和安卓 `ConnectivityManager` API，为您提供完整的网络状态概览。
 
 #### 非 Root 模式 (只读模式)
 *   **安全只读信息**: 使用标准的安卓系统 API，安全地查看核心网络信息。
