@@ -1,6 +1,6 @@
 # EtherOvO
 
-**English** | [**中文**](#etherovo-中文版)
+**English** | [**中文**](#etherovo-zh_cn)
 
 An advanced management tool for USB Ethernet adapters on Android devices, featuring dual-mode operation for both Root and Non-Root users.
 
