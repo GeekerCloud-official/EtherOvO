@@ -54,7 +54,7 @@ The application's core logic is built around a dual-mode system:
 4.  Build the project using `Build > Make Project` or generate an APK via `Build > Build Bundle(s) / APK(s) > Build APK(s)`.
 
 ### APP ICON
-Copyright [明风OuO](https://space.bilibili.com/274939213).
+Original Copyright [明风OuO](https://space.bilibili.com/274939213).
 
 ---
 <br>
@@ -98,5 +98,5 @@ EtherOvO 会智能检测设备是否拥有 Root 权限，并自动调整其功�
 4.  通过 `Build > Make Project` 构建项目，或通过 `Build > Build Bundle(s) / APK(s) > Build APK(s)` 生成 APK 文件。
 
 ### APP图标
-著作版权来自 [明风OuO](https://space.bilibili.com/274939213)。
+源著作版权来自 [明风OuO](https://space.bilibili.com/274939213)。
 
