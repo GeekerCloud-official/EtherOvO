@@ -287,8 +287,6 @@ public class MainActivity extends AppCompatActivity {
                 isUp = linkOutput.contains("state UP");
             }
 
-            final List<InfoItem> newRouteList = new ArrayList<>();
-            final Set<String> destinationsFromApi = new HashSet<>();
             StringBuilder dnsBuilder = new StringBuilder();
             ConnectivityManager cm = (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
             for (Network network : cm.getAllNetworks()) {
@@ -296,18 +294,6 @@ public class MainActivity extends AppCompatActivity {
                 if (linkProperties != null && foundInterfaceName.equals(linkProperties.getInterfaceName())) {
                     for (InetAddress dns : linkProperties.getDnsServers()) {
                         dnsBuilder.append(dns.getHostAddress()).append("\n");
-                    }
-                    for (RouteInfo route : linkProperties.getRoutes()) {
-                        if (route.hasGateway()) {
-                            String destination = route.getDestination().toString();
-                            if (route.isDefaultRoute()) destination = "default";
-                            destinationsFromApi.add(destination);
-
-                            String title = route.isDefaultRoute() ? getString(R.string.default_route_gateway) + " [by API]" : getString(R.string.route_to, route.getDestination().toString()) + " [by API]";
-                            InfoItem apiRouteItem = new InfoItem(title, route.toString());
-                            apiRouteItem.originalValue = route.toString();
-                            newRouteList.add(apiRouteItem);
-                        }
                     }
                     break;
                 }
@@ -351,19 +337,15 @@ public class MainActivity extends AppCompatActivity {
             newDetailsList.add(new InfoItem(getString(R.string.speed), speed));
             newDetailsList.add(new InfoItem(getString(R.string.duplex_mode), duplex));
 
-            RootUtil.CommandResult resultRoute = RootUtil.executeRootCommand("ip route show dev " + foundInterfaceName);
+            // +++ 修改：只使用 `ip route show table [接口名]` 来检测路由 +++
+            final List<InfoItem> newRouteList = new ArrayList<>();
+            RootUtil.CommandResult resultRoute = RootUtil.executeRootCommand("ip route show table " + foundInterfaceName);
             String[] lines = resultRoute.stdout.split("\\r?\\n");
             for (String line : lines) {
                 if (line.trim().isEmpty()) continue;
-
                 String cleanedLine = line.trim();
                 String[] parts = cleanedLine.split("\\s+");
                 String destination = (parts.length > 0) ? parts[0] : "";
-
-                if (destinationsFromApi.contains(destination)) {
-                    continue;
-                }
-
                 String title;
                 if (cleanedLine.startsWith("default")) {
                     title = getString(R.string.default_route_gateway);
@@ -464,11 +446,8 @@ public class MainActivity extends AppCompatActivity {
                 RootUtil.executeRootCommand("ip addr add " + ip + " dev " + interfaceName);
             }
             for (String route : routes) {
-                if (route.startsWith("default")) {
-                    RootUtil.executeRootCommand("ip route del default dev " + interfaceName + "; ip route add " + route + " dev " + interfaceName);
-                } else {
-                    RootUtil.executeRootCommand("ip route add " + route + " dev " + interfaceName);
-                }
+                // +++ 修复：将持久化路由添加到正确的表中 +++
+                RootUtil.executeRootCommand("ip route add " + route + " dev " + interfaceName + " table " + interfaceName);
             }
         });
     }
@@ -579,15 +558,10 @@ public class MainActivity extends AppCompatActivity {
             String gateway = gatewayInput.getText().toString().trim();
             if (!dest.isEmpty() && !gateway.isEmpty()) {
                 String routePart = dest + " via " + gateway;
-                String command;
-                String successMessage;
-                if (dest.equalsIgnoreCase("default")) {
-                    command = "ip route del default; ip route add " + routePart + " dev " + currentInterfaceName;
-                    successMessage = getString(R.string.default_gateway_set_success);
-                } else {
-                    command = "ip route add " + routePart + " dev " + currentInterfaceName;
-                    successMessage = getString(R.string.route_add_success);
-                }
+                // +++ 修复：将手动添加的路由添加到正确的表中 +++
+                String command = "ip route add " + routePart + " dev " + currentInterfaceName + " table " + currentInterfaceName;
+                String successMessage = dest.equalsIgnoreCase("default") ? getString(R.string.default_gateway_set_success) : getString(R.string.route_add_success);
+
                 executeCommandAndRefresh(command, successMessage);
                 saveRouteToPrefs(routePart);
             }
@@ -614,7 +588,9 @@ public class MainActivity extends AppCompatActivity {
 
     private void deleteRoute(String fullRoute) {
         if (currentInterfaceName.isEmpty()) return;
-        executeCommandAndRefresh("ip route del " + fullRoute, getString(R.string.route_deleted_success));
+        // +++ 修复：从正确的表中删除路由 +++
+        String command = "ip route del " + fullRoute + " table " + currentInterfaceName;
+        executeCommandAndRefresh(command, getString(R.string.route_deleted_success));
         removeRouteFromPrefs(fullRoute);
     }
 
