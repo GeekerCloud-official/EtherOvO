@@ -10,7 +10,7 @@ An advanced management tool for USB Ethernet adapters on Android devices, featur
 
 | Connected (Root Mode) / 连接状态 (Root 模式) | Connected (Non-Root Mode) / 连接状态 (非Root 模式) | Disconnected / 未连接状态 |
 | :----------------------------------------------------------: | :----------------------------------------------------------: | :----------------------------------------------------------: |
-| ![Screenshot of Root Mode]([此处替换为您的 Root 模式截图链接]) | ![Screenshot of Non-Root Mode]([此处替换为您的非 Root 模式截图链接]) | ![Screenshot of Disconnected State]([此处替换为您的未连接状态截图链接]) |
+| ![Screenshot of Root Mode](https://github.com/GeekerCloud-official/EtherOvO/blob/main/imgs/Root_Mode.jpg) | ![Screenshot of Non-Root Mode](https://github.com/GeekerCloud-official/EtherOvO/blob/main/imgs/Non_Root_Mode.jpg) | ![Screenshot of Disconnected State](https://github.com/GeekerCloud-official/EtherOvO/blob/main/imgs/Disconnect.jpg) |
 
 ## Features / 功能特性
 
