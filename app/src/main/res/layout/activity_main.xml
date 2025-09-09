@@ -51,7 +51,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="24dp"
-                android:text="未检测到USB有线网卡"
+                android:text="@string/usb_not_found"
                 android:textAppearance="?attr/textAppearanceTitleMedium"
                 android:textColor="?attr/colorOnSurfaceVariant" />
         </LinearLayout>
@@ -105,7 +105,7 @@
                             android:layout_marginTop="8dp"
                             android:layout_marginBottom="16dp"
                             app:backgroundTint="?attr/colorError"
-                            android:text="重置接口 (恢复DHCP)" />
+                            android:text="@string/reset_interface_button" />
                     </LinearLayout>
                 </com.google.android.material.card.MaterialCardView>
 
@@ -123,7 +123,7 @@
                             android:id="@+id/ip_section_title"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="IP 地址"
+                            android:text="@string/ip_address_section_title"
                             android:paddingHorizontal="16dp"
                             android:paddingTop="16dp"
                             android:textAppearance="?attr/textAppearanceTitleMedium" />
@@ -141,7 +141,7 @@
                             android:layout_marginHorizontal="16dp"
                             android:layout_marginTop="8dp"
                             android:layout_marginBottom="16dp"
-                            android:text="添加新 IP 地址"
+                            android:text="@string/add_new_ip_button"
                             style="?attr/materialButtonStyle" />
                     </LinearLayout>
                 </com.google.android.material.card.MaterialCardView>
@@ -160,7 +160,7 @@
                             android:id="@+id/route_section_title"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:text="路由规则"
+                            android:text="@string/route_rules_section_title"
                             android:paddingHorizontal="16dp"
                             android:paddingTop="16dp"
                             android:textAppearance="?attr/textAppearanceTitleMedium" />
@@ -178,7 +178,7 @@
                             android:layout_marginHorizontal="16dp"
                             android:layout_marginTop="8dp"
                             android:layout_marginBottom="16dp"
-                            android:text="添加新路由"
+                            android:text="@string/add_new_route_button"
                             style="?attr/materialButtonStyle" />
                     </LinearLayout>
                 </com.google.android.material.card.MaterialCardView>

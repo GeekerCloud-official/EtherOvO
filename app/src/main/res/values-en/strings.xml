@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- App & Toolbar -->
+    <string name="app_name">EtherOvO</string>
+    <string name="action_refresh">Refresh</string>
+    <string name="action_about">About</string>
+
+    <!-- Connection Status -->
+    <string name="usb_not_found">USB Ethernet adapter not found</string>
+    <string name="ethernet_not_found">Wired network connection not found</string>
+    <string name="no_wired_connection">No available wired connection</string>
+
+    <!-- Toasts & Messages -->
+    <string name="refreshing">Refreshing...</string>
+    <string name="refresh_complete">Refresh complete</string>
+    <string name="executing_action">Executing action...</string>
+    <string name="action_failed">Action failed:\n%1$s</string>
+    <string name="no_interface_detected">No active interface detected, please refresh first</string>
+    <string name="ip_add_success">IP address added successfully</string>
+    <string name="default_gateway_set_success">Default gateway set successfully</string>
+    <string name="route_add_success">Route added successfully</string>
+    <string name="ip_deleted_success">IP address deleted</string>
+    <string name="route_deleted_success">Route deleted</string>
+    <string name="interface_reset_success">Interface has been reset</string>
+
+    <!-- Info Item Titles -->
+    <string name="ipv4_address">IPv4 Address</string>
+    <string name="default_route_gateway">Default Route (Gateway)</string>
+    <string name="route_to">Route to %1$s</string>
+    <string name="route_rules">Routing Rules</string>
+    <string name="mac_address">MAC Address</string>
+    <string name="status">Status</string>
+    <string name="dns_servers">DNS Servers</string>
+    <string name="speed">Speed</string>
+    <string name="duplex_mode">Duplex Mode</string>
+    <string name="na_non_root">N/A (Root Permission Require)</string>
+
+    <!-- Dialogs -->
+    <string name="about_title">About EtherOvO</string>
+    <string name="about_message">An advanced management tool for USB Ethernet adapters.</string>
+    <string name="ok">OK</string>
+    <string name="cancel">Cancel</string>
+    <string name="add">Add</string>
+    <string name="delete">Delete</string>
+    <string name="reset">Reset</string>
+
+    <string name="add_new_ip_title">Add New IP Address</string>
+    <string name="ip_address_hint">IP Address (e.g., 192.168.12.6)</string>
+    <string name="prefix_length_hint">Prefix Length (e.g., 24)</string>
+
+    <string name="add_new_route_title">Add New Route</string>
+    <string name="dest_subnet_hint">Destination Subnet (e.g., 10.0.0.0/8)</string>
+    <string name="set_as_default_gateway">Set as default gateway</string>
+    <string name="gateway_hint">Via Gateway (e.g., 192.168.12.254)</string>
+
+    <string name="confirm_delete_title">Confirm Deletion</string>
+    <string name="confirm_delete_message">Are you sure you want to delete this %1$s?\n\n%2$s</string>
+    <string name="item_type_ip">IP Address</string>
+    <string name="item_type_route">Route</string>
+
+    <string name="confirm_reset_title">Confirm Interface Reset</string>
+    <string name="confirm_reset_message">This will clear all manually configured IPs and routes,Are you sure?</string>
+
+    <!-- Layout Texts -->
+    <string name="reset_interface_button">Reset Interface</string>
+    <string name="ip_address_section_title">IP Addresses</string>
+    <string name="add_new_ip_button">Add New IP Address</string>
+    <string name="route_rules_section_title">Routing Rules</string>
+    <string name="add_new_route_button">Add New Route</string>
+
+</resources>

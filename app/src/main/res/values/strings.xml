@@ -1,3 +1,71 @@
+<?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <!-- App & Toolbar -->
     <string name="app_name">EtherOvO</string>
+    <string name="action_refresh">刷新</string>
+    <string name="action_about">关于</string>
+
+    <!-- Connection Status -->
+    <string name="usb_not_found">未找到USB有线网卡</string>
+    <string name="ethernet_not_found">未找到有线网络连接</string>
+    <string name="no_wired_connection">无可用有线网络连接</string>
+
+    <!-- Toasts & Messages -->
+    <string name="refreshing">正在刷新...</string>
+    <string name="refresh_complete">刷新完成</string>
+    <string name="executing_action">正在执行操作...</string>
+    <string name="action_failed">操作失败:\n%1$s</string>
+    <string name="no_interface_detected">未检测到有效接口，请先刷新</string>
+    <string name="ip_add_success">IP地址添加成功</string>
+    <string name="default_gateway_set_success">默认网关已设置</string>
+    <string name="route_add_success">路由添加成功</string>
+    <string name="ip_deleted_success">IP地址已删除</string>
+    <string name="route_deleted_success">路由已删除</string>
+    <string name="interface_reset_success">接口已重置</string>
+
+    <!-- Info Item Titles -->
+    <string name="ipv4_address">IPv4 地址</string>
+    <string name="default_route_gateway">默认路由 (网关)</string>
+    <string name="route_to">路由至 %1$s</string>
+    <string name="route_rules">路由规则</string>
+    <string name="mac_address">MAC 地址</string>
+    <string name="status">状态</string>
+    <string name="dns_servers">DNS 服务器</string>
+    <string name="speed">速率</string>
+    <string name="duplex_mode">双工模式</string>
+    <string name="na_non_root">N/A (需要Root权限)</string>
+
+    <!-- Dialogs -->
+    <string name="about_title">关于 EtherOvO</string>
+    <string name="about_message">这是一款高级USB有线网卡管理工具喵</string>
+    <string name="ok">确定</string>
+    <string name="cancel">取消</string>
+    <string name="add">添加</string>
+    <string name="delete">删除</string>
+    <string name="reset">重置</string>
+
+    <string name="add_new_ip_title">添加新IP地址</string>
+    <string name="ip_address_hint">IP 地址 (例如 192.168.12.6)</string>
+    <string name="prefix_length_hint">网络前缀长度 (例如 24)</string>
+
+    <string name="add_new_route_title">添加新路由</string>
+    <string name="dest_subnet_hint">目标子网 (例如 10.0.0.0/8)</string>
+    <string name="set_as_default_gateway">设为默认网关</string>
+    <string name="gateway_hint">通过网关 (例如 192.168.12.254)</string>
+
+    <string name="confirm_delete_title">确认删除</string>
+    <string name="confirm_delete_message">您确定要删除这个%1$s吗？\n\n%2$s</string>
+    <string name="item_type_ip">IP地址</string>
+    <string name="item_type_route">路由</string>
+
+    <string name="confirm_reset_title">确认重置接口</string>
+    <string name="confirm_reset_message">这将清除所有手动配置的IP和路由，您确定吗？</string>
+
+    <!-- Layout Texts -->
+    <string name="reset_interface_button">重置接口配置</string>
+    <string name="ip_address_section_title">IP 地址</string>
+    <string name="add_new_ip_button">添加新 IP 地址</string>
+    <string name="route_rules_section_title">路由规则</string>
+    <string name="add_new_route_button">添加新路由</string>
+
 </resources>
