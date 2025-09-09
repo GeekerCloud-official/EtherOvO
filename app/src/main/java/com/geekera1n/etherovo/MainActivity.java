@@ -2,6 +2,11 @@ package com.geekera1n.etherovo; // 确保包名一致
 
 import android.content.Context;
 import android.content.SharedPreferences;
+import android.net.ConnectivityManager;
+import android.net.LinkAddress;
+import android.net.Network;
+import android.net.NetworkCapabilities;
+import android.net.LinkProperties;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
@@ -17,10 +22,17 @@ import android.widget.ListView;
 import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.Toast;
+
 import androidx.appcompat.app.AppCompatActivity;
+
 import com.google.android.material.appbar.MaterialToolbar;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
+
+import java.net.Inet4Address;
+import java.net.InetAddress;
+import java.net.NetworkInterface;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -37,6 +49,7 @@ public class MainActivity extends AppCompatActivity {
     private TextView tvInterfaceName;
     private Button btnAddIp, btnAddRoute, btnResetInterface;
     private ListView lvInterfaceDetails, lvIpAddresses, lvRoutes;
+    private TextView tvDisconnectedStatus; // +++ 新增：用于控制未连接时的文本
 
     private InfoAdapter detailsAdapter, ipAdapter, routeAdapter;
     private final List<InfoItem> detailsList = new ArrayList<>();
@@ -54,18 +67,13 @@ public class MainActivity extends AppCompatActivity {
     private static final String PREFS_NAME = "EtherOvO_Persistence";
     private static final String KEY_PERSISTENT_IPS = "persistent_ips";
     private static final String KEY_PERSISTENT_ROUTES = "persistent_routes";
-
-    // --- 新增：用于跟踪接口的上一次状态 ---
     private boolean wasInterfaceUp = false;
-    // --- 新增结束 ---
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-
         sharedPreferences = getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
-
         initViews();
         setupListeners();
         refreshAllInfo(true);
@@ -87,6 +95,7 @@ public class MainActivity extends AppCompatActivity {
         btnResetInterface = findViewById(R.id.btnResetInterface);
         lvIpAddresses = findViewById(R.id.lvIpAddresses);
         lvRoutes = findViewById(R.id.lvRoutes);
+        tvDisconnectedStatus = findViewById(R.id.tv_disconnected_status); // +++ 初始化TextView
 
         detailsAdapter = new InfoAdapter(this, detailsList);
         ipAdapter = new InfoAdapter(this, ipList);
@@ -109,6 +118,7 @@ public class MainActivity extends AppCompatActivity {
             }
             return false;
         });
+
         if (RootUtil.isRootAvailable()) {
             btnAddIp.setOnClickListener(v -> showAddIpDialog());
             btnAddRoute.setOnClickListener(v -> showAddRouteDialog());
@@ -126,21 +136,26 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
+    // --- 修改：修正了UI显示逻辑 ---
     private void updateUiState(boolean isConnected) {
         if (isConnected) {
             layoutConnected.setVisibility(View.VISIBLE);
             layoutDisconnected.setVisibility(View.GONE);
+
+            // IP和路由列表在连接时总是可见
+            findViewById(R.id.ip_section_title).setVisibility(View.VISIBLE);
+            findViewById(R.id.route_section_title).setVisibility(View.VISIBLE);
+            lvIpAddresses.setVisibility(View.VISIBLE);
+            lvRoutes.setVisibility(View.VISIBLE);
+
+            // 只有Root模式下才显示修改按钮
             boolean hasRoot = RootUtil.isRootAvailable();
             int visibility = hasRoot ? View.VISIBLE : View.GONE;
             btnAddIp.setVisibility(visibility);
             btnAddRoute.setVisibility(visibility);
             btnResetInterface.setVisibility(visibility);
-            View ipTitle = findViewById(R.id.ip_section_title);
-            if(ipTitle != null) ipTitle.setVisibility(visibility);
-            View routeTitle = findViewById(R.id.route_section_title);
-            if (routeTitle != null) routeTitle.setVisibility(visibility);
-            lvIpAddresses.setVisibility(visibility);
-            lvRoutes.setVisibility(visibility);
+
+            // 非Root模式下禁用长按删除
             if (!hasRoot) {
                 lvIpAddresses.setOnItemLongClickListener(null);
                 lvRoutes.setOnItemLongClickListener(null);
@@ -155,15 +170,114 @@ public class MainActivity extends AppCompatActivity {
         if (showToast) {
             Toast.makeText(this, "正在刷新...", Toast.LENGTH_SHORT).show();
         }
+        if (RootUtil.isRootAvailable()) {
+            refreshInfoWithRoot(showToast);
+        } else {
+            refreshInfoWithAndroidApi(showToast);
+        }
+    }
+
+    // --- 修改：大幅优化了非Root模式的检测逻辑 ---
+    private void refreshInfoWithAndroidApi(boolean showToast) {
         executorService.execute(() -> {
-            if (!RootUtil.isRootAvailable()) {
+            ConnectivityManager cm = (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
+            Network activeNetwork = null;
+
+            for (Network network : cm.getAllNetworks()) {
+                NetworkCapabilities caps = cm.getNetworkCapabilities(network);
+                if (caps != null && caps.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET)) {
+                    activeNetwork = network;
+                    break;
+                }
+            }
+
+            if (activeNetwork == null) {
                 mainHandler.post(() -> {
+                    if (tvDisconnectedStatus != null) {
+                        tvDisconnectedStatus.setText("无可用有线网络连接"); // 设置非Root下的提示
+                    }
                     updateUiState(false);
-                    Toast.makeText(this, "需要Root权限以检测接口", Toast.LENGTH_LONG).show();
+                    if (showToast) Toast.makeText(this, "未找到有线网络连接", Toast.LENGTH_SHORT).show();
                 });
                 return;
             }
 
+            LinkProperties linkProperties = cm.getLinkProperties(activeNetwork);
+            if (linkProperties == null) {
+                mainHandler.post(() -> updateUiState(false));
+                return;
+            }
+
+            final String interfaceName = linkProperties.getInterfaceName();
+            final List<InfoItem> newDetailsList = new ArrayList<>();
+            final List<InfoItem> newIpList = new ArrayList<>();
+            final List<InfoItem> newRouteList = new ArrayList<>();
+            Inet4Address ipv4Address = null;
+
+            for (LinkAddress addr : linkProperties.getLinkAddresses()) {
+                if (addr.getAddress() instanceof Inet4Address) {
+                    ipv4Address = (Inet4Address) addr.getAddress();
+                    newIpList.add(new InfoItem("IPv4 地址", addr.toString()));
+                }
+            }
+
+            linkProperties.getRoutes().forEach(route -> {
+                if (route.hasGateway()) {
+                    String title = route.isDefaultRoute() ? "默认路由 (网关)" : "路由至 " + route.getDestination();
+                    newRouteList.add(new InfoItem(title, route.toString()));
+                }
+            });
+
+            StringBuilder dnsBuilder = new StringBuilder();
+            for (InetAddress dns : linkProperties.getDnsServers()) {
+                dnsBuilder.append(dns.getHostAddress()).append("\n");
+            }
+
+            // 更可靠的MAC地址获取方法
+            String macAddress = "N/A";
+            try {
+                List<NetworkInterface> all = Collections.list(NetworkInterface.getNetworkInterfaces());
+                for (NetworkInterface nif : all) {
+                    if (!nif.getName().equalsIgnoreCase(interfaceName)) continue;
+
+                    byte[] macBytes = nif.getHardwareAddress();
+                    if (macBytes == null) continue;
+
+                    StringBuilder res1 = new StringBuilder();
+                    for (byte b : macBytes) {
+                        res1.append(String.format("%02X:", b));
+                    }
+                    if (res1.length() > 0) {
+                        res1.deleteCharAt(res1.length() - 1);
+                    }
+                    macAddress = res1.toString();
+                    break;
+                }
+            } catch (Exception ex) { ex.printStackTrace(); }
+
+            newDetailsList.add(new InfoItem("MAC 地址", macAddress));
+            newDetailsList.add(new InfoItem("状态", "UP"));
+            if (dnsBuilder.length() > 0) {
+                newDetailsList.add(new InfoItem("DNS 服务器", dnsBuilder.toString().trim()));
+            }
+            newDetailsList.add(new InfoItem("速率", "N/A (非Root)"));
+            newDetailsList.add(new InfoItem("双工模式", "N/A (非Root)"));
+
+            mainHandler.post(() -> {
+                updateUiState(true);
+                tvInterfaceName.setText(interfaceName);
+
+                updateListView(detailsList, newDetailsList, detailsAdapter, lvInterfaceDetails);
+                updateListView(ipList, newIpList, ipAdapter, lvIpAddresses);
+                updateListView(routeList, newRouteList, routeAdapter, lvRoutes);
+
+                if (showToast) Toast.makeText(this, "刷新完成", Toast.LENGTH_SHORT).show();
+            });
+        });
+    }
+
+    private void refreshInfoWithRoot(boolean showToast) {
+        executorService.execute(() -> {
             RootUtil.CommandResult resultLinks = RootUtil.executeRootCommand("ip link show");
             Pattern interfacePattern = Pattern.compile("\\d+: (eth\\d+|usb\\d+):");
             Matcher interfaceMatcher = interfacePattern.matcher(resultLinks.stdout);
@@ -171,8 +285,11 @@ public class MainActivity extends AppCompatActivity {
 
             if (foundInterfaceName.isEmpty()) {
                 mainHandler.post(() -> {
+                    if (tvDisconnectedStatus != null) {
+                        tvDisconnectedStatus.setText("未找到USB有线网卡"); // 设置Root下的提示
+                    }
                     this.currentInterfaceName = "";
-                    this.wasInterfaceUp = false; // --- 修改：接口消失时，重置状态 ---
+                    this.wasInterfaceUp = false;
                     updateUiState(false);
                     if (showToast) Toast.makeText(this, "未找到USB有线网卡", Toast.LENGTH_SHORT).show();
                 });
@@ -180,41 +297,27 @@ public class MainActivity extends AppCompatActivity {
             }
 
             final boolean isNewInterfaceConnected = !foundInterfaceName.equals(this.currentInterfaceName);
-
             RootUtil.CommandResult resultLink = RootUtil.executeRootCommand("ip link show " + foundInterfaceName);
             String linkOutput = resultLink.stdout;
-
-            // --- 修改：在这里提前获取 isUp 状态 ---
             boolean isUp = linkOutput.contains("state UP");
 
-            // --- 修改：全新的、更完善的恢复逻辑 ---
-            // 触发恢复的条件:
-            // 1. 检测到一个全新的接口 (应对USB插拔)
-            // 2. 或者，是同一个接口，但它刚刚从 DOWN 状态恢复到 UP 状态 (应对网线插拔)
             final boolean shouldRestoreConfig = isNewInterfaceConnected || (!this.wasInterfaceUp && isUp);
 
             if (shouldRestoreConfig) {
                 mainHandler.post(() -> Toast.makeText(this, "检测到连接，正在恢复配置...", Toast.LENGTH_SHORT).show());
                 applyPersistentConfig(foundInterfaceName);
-                // 等待一小段时间让配置生效
                 try {
                     Thread.sleep(1000);
-                } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
-                }
-                // 重新获取信息以显示最新状态
+                } catch (InterruptedException e) { Thread.currentThread().interrupt(); }
                 resultLink = RootUtil.executeRootCommand("ip link show " + foundInterfaceName);
                 linkOutput = resultLink.stdout;
                 isUp = linkOutput.contains("state UP");
             }
-            // --- 修改结束 ---
 
             String macAddress = "N/A";
             Pattern macPattern = Pattern.compile("link/ether ([0-9a-fA-F:]+)");
             Matcher macMatcher = macPattern.matcher(linkOutput);
-            if (macMatcher.find()) {
-                macAddress = macMatcher.group(1);
-            }
+            if (macMatcher.find()) macAddress = macMatcher.group(1);
 
             RootUtil.CommandResult resultAddr = RootUtil.executeRootCommand("ip addr show " + foundInterfaceName);
             final List<InfoItem> newIpList = new ArrayList<>();
@@ -229,12 +332,8 @@ public class MainActivity extends AppCompatActivity {
             if (isUp && speedResult.isSuccess() && !speedResult.stdout.trim().isEmpty()) {
                 try {
                     String speedValue = speedResult.stdout.trim();
-                    if(Integer.parseInt(speedValue) > 0) {
-                        speed = speedValue + " Mbps";
-                    }
-                } catch (NumberFormatException e) {
-                    // Ignore
-                }
+                    if (Integer.parseInt(speedValue) > 0) speed = speedValue + " Mbps";
+                } catch (NumberFormatException e) { /* Ignore */ }
             }
 
             RootUtil.CommandResult duplexResult = RootUtil.executeRootCommand("cat /sys/class/net/" + foundInterfaceName + "/duplex");
@@ -255,31 +354,26 @@ public class MainActivity extends AppCompatActivity {
             String[] lines = resultRoute.stdout.split("\\r?\\n");
             for (String line : lines) {
                 if (line.trim().isEmpty()) continue;
-
                 String title;
-                String cleanedLine = line.trim(); // 清理首尾空格
-
+                String cleanedLine = line.trim();
                 if (cleanedLine.startsWith("default")) {
                     title = "默认路由 (网关)";
                 } else {
-                    // 对于其他路由，通常第一个词就是目标网络地址
-                    String[] parts = cleanedLine.split("\\s+"); // 按一个或多个空格分割
+                    String[] parts = cleanedLine.split("\\s+");
                     if (parts.length > 0) {
-                        // 创建一个如 "路由至 192.168.17.0/24" 的标题
                         title = "路由至 " + parts[0];
                     } else {
-                        // 这是一个几乎不会发生的备用情况
                         title = "路由规则";
                     }
                 }
                 newRouteList.add(new InfoItem(title, cleanedLine));
             }
             final String finalInterfaceName = foundInterfaceName;
-            final boolean finalIsUp = isUp; // --- 修改：将最终的状态传递给主线程 ---
+            final boolean finalIsUp = isUp;
 
             mainHandler.post(() -> {
                 this.currentInterfaceName = finalInterfaceName;
-                this.wasInterfaceUp = finalIsUp; // --- 修改：更新接口状态，为下一次刷新做准备 ---
+                this.wasInterfaceUp = finalIsUp;
                 updateUiState(true);
                 tvInterfaceName.setText(finalInterfaceName);
 
@@ -297,20 +391,26 @@ public class MainActivity extends AppCompatActivity {
             currentList.clear();
             currentList.addAll(newList);
             adapter.notifyDataSetChanged();
-            setListViewHeightBasedOnChildren(listView);
+            listView.post(() -> setListViewHeightBasedOnChildren(listView));
         }
     }
 
     public static void setListViewHeightBasedOnChildren(ListView listView) {
         ListAdapter listAdapter = listView.getAdapter();
         if (listAdapter == null) return;
+
         int totalHeight = 0;
-        for (int i = 0; i < listAdapter.getCount(); i++) {
-            View listItem = listAdapter.getView(i, null, listView);
-            listItem.measure(View.MeasureSpec.makeMeasureSpec(listView.getWidth(), View.MeasureSpec.UNSPECIFIED),
-                    View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED));
-            totalHeight += listItem.getMeasuredHeight();
+        if (listAdapter.getCount() > 0) {
+            int desiredWidth = View.MeasureSpec.makeMeasureSpec(listView.getWidth(), View.MeasureSpec.EXACTLY);
+            for (int i = 0; i < listAdapter.getCount(); i++) {
+                View listItem = listAdapter.getView(i, null, listView);
+                if (listView.getWidth() > 0) { // 增加保护
+                    listItem.measure(desiredWidth, View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED));
+                    totalHeight += listItem.getMeasuredHeight();
+                }
+            }
         }
+
         ViewGroup.LayoutParams params = listView.getLayoutParams();
         params.height = totalHeight + (listView.getDividerHeight() * (listAdapter.getCount() - 1));
         listView.setLayoutParams(params);
@@ -358,16 +458,11 @@ public class MainActivity extends AppCompatActivity {
     private void applyPersistentConfig(final String interfaceName) {
         Set<String> ips = sharedPreferences.getStringSet(KEY_PERSISTENT_IPS, new HashSet<>());
         Set<String> routes = sharedPreferences.getStringSet(KEY_PERSISTENT_ROUTES, new HashSet<>());
-
-        if (ips.isEmpty() && routes.isEmpty()) {
-            return;
-        }
-
+        if (ips.isEmpty() && routes.isEmpty()) return;
         executorService.execute(() -> {
             for (String ip : ips) {
                 RootUtil.executeRootCommand("ip addr add " + ip + " dev " + interfaceName);
             }
-
             for (String route : routes) {
                 if (route.startsWith("default")) {
                     RootUtil.executeRootCommand("ip route del default dev " + interfaceName + "; ip route add " + route + " dev " + interfaceName);
@@ -400,7 +495,6 @@ public class MainActivity extends AppCompatActivity {
         Set<String> routes = new HashSet<>(sharedPreferences.getStringSet(KEY_PERSISTENT_ROUTES, new HashSet<>()));
         String routeToRemove = null;
         for (String savedRoute : routes) {
-            // "ip route show" 的输出 (fullRouteLine) 包含我们保存的路由命令部分 (savedRoute)
             if (fullRouteLine.trim().startsWith(savedRoute)) {
                 routeToRemove = savedRoute;
                 break;
@@ -476,7 +570,7 @@ public class MainActivity extends AppCompatActivity {
         layout.addView(gatewayInput);
         defaultCheck.setOnCheckedChangeListener((buttonView, isChecked) -> {
             destInput.setEnabled(!isChecked);
-            if(isChecked) destInput.setText("default");
+            if (isChecked) destInput.setText("default");
             else destInput.setText("");
         });
         builder.setView(layout);
